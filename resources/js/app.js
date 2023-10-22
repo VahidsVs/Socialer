@@ -13,5 +13,5 @@ if(document.querySelector('.header-chat-icon')) // only if there is chat icon an
 }
 if(document.querySelector('.profile-nav')) // only if there is chat icon and user is logined instanciate Chat
 {
-   // new SPA();
+   new SPA();
 }

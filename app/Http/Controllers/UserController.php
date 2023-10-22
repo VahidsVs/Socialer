@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use App\Models\Post;
 use App\Models\User;
 use App\Models\Follow;
 use App\Events\MyEvent;
+use App\Jobs\storeLogsJob;
 use Illuminate\Http\Request;
 use GuzzleHttp\Promise\Create;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Cache;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 
@@ -68,6 +71,9 @@ class UserController extends Controller
         //dd($user->posts()->latest()->get());
         //dd(User::with("posts")->where($user)->get());
         self::getSharedData($user);
+       // event(new MyEvent(['username'=>Auth::user()->username,'action'=>'visitProfile']));
+        dispatch(new storeLogsJob(['username'=>Auth::user()->username,'action'=>"visit {$user->username}'s Profile"]));
+        
         return view("view-profile", ["posts" => $user->posts()->latest()->get()]);
     }
     public function viewProfileFollowers(User $user)
@@ -89,8 +95,25 @@ class UserController extends Controller
             $lastestFeeds->load('user:id,username,avatar'); // to load and shown json data of relationships table
             return view("homepage-loggedin", ["posts" => $lastestFeeds]);
         } else
-            return view("homepage");
+        {
+            $postCount = Cache::remember('postCount', 20, function () {
+                return Post::count();
+            });
+            return view("homepage",["postCount"=>$postCount]);
+        }
         //auth
+    }
+    public function loginApi(Request $request)
+    {
+        $token=null;
+        $values = $request->validate(["username" => "required", "password" => "required"]);
+        if (auth()->attempt($values)) {
+            $user=User::where('username',$values['username'])->first();
+          $token=$user->createToken('sociler')->plainTextToken;
+            return ($token);
+        } 
+        else
+        return "sorry";
     }
     public function login(Request $request)
     {
